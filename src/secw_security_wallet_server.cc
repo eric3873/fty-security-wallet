@@ -50,11 +50,9 @@ namespace secw
                                                 const std::string & databasePath,
                                                 fty::StreamPublisher & streamPublisher,
                                                 const std::string & srrEndpoint,
-                                                const std::string & srrAgentName,
-                                                const std::string & dbUrl)
+                                                const std::string & srrAgentName)
         :   m_activeWallet(configurationPath, databasePath),
-            m_streamPublisher(streamPublisher),
-            m_dbProxy(dbUrl.empty() ? nullptr : new secw::SecurityWalletDatabaseProxy(dbUrl))
+            m_streamPublisher(streamPublisher)
     {
         //initiate the commands handlers
         m_supportedCommands[GET_PORTFOLIO_LIST] = std::bind(&SecurityWalletServer::handleGetListPortfolio, this, _1, _2);
@@ -74,10 +72,6 @@ namespace secw
         m_supportedCommands[CREATE] = std::bind(&SecurityWalletServer::handleCreate, this, _1, _2);
         m_supportedCommands[DELETE] = std::bind(&SecurityWalletServer::handleDelete, this, _1, _2);
         m_supportedCommands[UPDATE] = std::bind(&SecurityWalletServer::handleUpdate, this, _1, _2);
-
-        if (m_dbProxy) {
-            m_dbProxy->sync(m_activeWallet);
-        }
 
         log_debug("check SRR <%s> <%s>", srrEndpoint.c_str(), srrAgentName.c_str());
         //add support for SRR here (need to rework after)
@@ -270,10 +264,6 @@ namespace secw
             }
             
             mapStatus[featureName] = featureStatus;
-        }
-
-        if (m_dbProxy) {
-            m_dbProxy->sync(m_activeWallet);
         }
         
         log_debug("Restore configuration done");
@@ -738,9 +728,6 @@ namespace secw
         std::string newId = portfolio.add(doc);
 
         m_activeWallet.save();
-        if (m_dbProxy) {
-            m_dbProxy->sync(m_activeWallet);
-        }
 
         sendNotificationOnCreate(portfolioName, portfolio.getDocument(newId));
         return newId;
@@ -794,9 +781,6 @@ namespace secw
         portfolio.remove(id);
 
         m_activeWallet.save();
-        if (m_dbProxy) {
-            m_dbProxy->sync(m_activeWallet);
-        }
 
         sendNotificationOnDelete(portfolioName, doc);
         return "OK";
@@ -869,9 +853,6 @@ namespace secw
         //do the update
         portfolio.update(copyOfExistingDoc);
         m_activeWallet.save();
-        if (m_dbProxy) {
-            m_dbProxy->sync(m_activeWallet);
-        }
 
         sendNotificationOnUpdate (portfolioName, docBeforeUpdate, doc);
         return "OK";
